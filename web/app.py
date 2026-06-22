@@ -82,16 +82,40 @@ def _save_cookies_upload(file_storage) -> str | None:
     return str(dest)
 
 
+def _resolve_facebook_page(token: str):
+    """A Page access token's /me IS the Page — use it to auto-fill the real
+    page_id (and name), so a mistyped Page ID can't break posting."""
+    try:
+        import requests
+        r = requests.get("https://graph.facebook.com/v20.0/me",
+                         params={"fields": "id,name", "access_token": token}, timeout=20)
+        if r.status_code == 200:
+            j = r.json()
+            return j.get("id"), j.get("name")
+    except Exception:
+        pass
+    return None, None
+
+
 @app.post("/accounts/add")
 def add_account():
     platform = request.form["platform"]
     extra = {}
-    if platform == "facebook" and request.form.get("page_id"):
-        extra["page_id"] = request.form["page_id"].strip()
 
     # Sign in the easy way: type the secret straight in (stored server-side), or
     # upload a TikTok cookies file. Falls back to an env-var name if provided.
     secret = (request.form.get("secret") or "").strip() or None
+    label = request.form["label"].strip()
+
+    if platform == "facebook":
+        # auto-derive the real Page ID from the token (overrides any typo)
+        page_id, page_name = (_resolve_facebook_page(secret) if secret else (None, None))
+        if not page_id and request.form.get("page_id"):
+            page_id = request.form["page_id"].strip()
+        if page_id:
+            extra["page_id"] = page_id
+        if page_name and not label:
+            label = page_name
     cookies_path = _save_cookies_upload(request.files.get("cookies_file"))
     if not cookies_path:
         cookies_path = (request.form.get("cookies_path") or "").strip() or None
@@ -101,7 +125,7 @@ def add_account():
             "INSERT INTO accounts(platform,label,username,secret,secret_env,cookies_path,extra) "
             "VALUES (?,?,?,?,?,?,?)",
             (platform,
-             request.form["label"].strip(),
+             label,
              (request.form.get("username") or "").strip() or None,
              secret,
              (request.form.get("secret_env") or "").strip() or None,

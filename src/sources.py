@@ -5,8 +5,20 @@ import json
 import logging
 import shutil
 import subprocess
+import sys
+from pathlib import Path
 
 log = logging.getLogger(__name__)
+
+
+def ytdlp_bin() -> str | None:
+    """Resolve the yt-dlp executable: PATH first, else next to the running python
+    (so it works under a venv/systemd without venv/bin on PATH)."""
+    cand = shutil.which("yt-dlp")
+    if cand:
+        return cand
+    local = Path(sys.executable).parent / "yt-dlp"
+    return str(local) if local.exists() else None
 
 
 def detect_platform(url: str) -> str:
@@ -24,11 +36,12 @@ def list_recent_videos(channel_url: str, limit: int = 5) -> list[dict]:
     Uses `yt-dlp --flat-playlist` so it does not download anything — just lists.
     Works for YouTube channels and (where supported) Kick channel video pages.
     """
-    if shutil.which("yt-dlp") is None:
-        raise RuntimeError("yt-dlp not found on PATH (pip install yt-dlp).")
+    ytdlp = ytdlp_bin()
+    if ytdlp is None:
+        raise RuntimeError("yt-dlp not found (pip install yt-dlp in the venv).")
 
     cmd = [
-        "yt-dlp",
+        ytdlp,
         "-J",                       # dump single JSON
         "--flat-playlist",
         "--playlist-end", str(limit),

@@ -49,11 +49,12 @@
       </div>
 
       <!-- Facebook: Page ID + paste a Page access token -->
-      <div data-plat="facebook" class="space-y-3 hidden">
-        <input name="page_id" placeholder="Facebook Page ID"
-               class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
+      <div data-plat="facebook" class="space-y-1 hidden">
         <input name="secret" type="password" placeholder="Page access token"
                class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
+        <input name="page_id" placeholder="Page ID (optional — auto-detected from token)"
+               class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
+        <p class="text-xs text-zinc-500">Paste a <b>Page access token</b>; the Page ID is verified &amp; filled in automatically.</p>
       </div>
 
       <button class="bg-emerald-600 hover:bg-emerald-500 rounded px-4 py-2 text-sm font-semibold">Add account</button>

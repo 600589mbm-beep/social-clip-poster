@@ -27,10 +27,13 @@ def _require(tool: str) -> None:
 
 
 def _download(url: str, browser_for_cookies: str | None) -> str:
-    _require("yt-dlp")
+    from src.sources import ytdlp_bin
+    ytdlp = ytdlp_bin()
+    if ytdlp is None:
+        raise RuntimeError("yt-dlp not found (pip install yt-dlp in the venv).")
     temp_file = f"temp_full_video_{abs(hash(url)) % 10_000_000}.mp4"
     dl_cmd = [
-        "yt-dlp",
+        ytdlp,
         "-f", "bestvideo+bestaudio/best",
         "--merge-output-format", "mp4",
         "-o", temp_file,
