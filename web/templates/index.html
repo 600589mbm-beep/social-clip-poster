@@ -31,6 +31,8 @@
       </select>
       <input name="label" required placeholder="Label (e.g. @mygamingclips)"
              class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
+      <input name="url" placeholder="Profile / Page URL (optional)"
+             class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
 
       <!-- Instagram: just username + password -->
       <div data-plat="instagram" class="space-y-3 hidden">
@@ -84,8 +86,11 @@
         </form>
       </div>
 
-      <!-- editable clip mode -->
-      <form method="post" action="/channels/{{ ch.id }}/clip" class="flex items-center gap-2 mt-4">
+      <!-- editable URL + clip mode -->
+      <form method="post" action="/channels/{{ ch.id }}/clip" class="mt-4 space-y-2">
+        <input name="url" value="{{ ch.url }}" placeholder="Channel URL"
+               class="w-full bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs">
+        <div class="flex items-center gap-2">
         <label class="text-xs text-zinc-400">Clip:</label>
         <select name="clip_seconds" class="flex-1 bg-zinc-950 border border-zinc-700 rounded px-2 py-1.5 text-xs">
           <option value="-1" {{ 'selected' if ch.clip_seconds == -1 }}>🧠 Hermes auto-optimize</option>
@@ -95,6 +100,7 @@
           <option value="90" {{ 'selected' if ch.clip_seconds == 90 }}>First 90s</option>
         </select>
         <button class="bg-zinc-700 hover:bg-zinc-600 rounded px-3 py-1.5 text-xs font-semibold">Save</button>
+        </div>
       </form>
 
       <!-- connections: toggle each account on/off for this channel -->
@@ -138,6 +144,7 @@
         <div>
           <span class="text-[10px] uppercase tracking-widest text-zinc-500">{{ a.platform }}</span>
           <p class="font-medium">{{ a.label }}</p>
+          {% if a.url %}<a href="{{ a.url }}" target="_blank" class="text-xs text-emerald-400 hover:underline break-all">{{ a.url }}</a>{% endif %}
           {% if a.platform == 'facebook' %}<p class="text-xs text-zinc-500">Page ID: {{ a.page_id or '—' }} · token {{ 'set ✓' if a.has_secret else 'missing' }}</p>{% endif %}
           {% if a.platform == 'instagram' %}<p class="text-xs text-zinc-500">@{{ a.username or '—' }} · password {{ 'set ✓' if a.has_secret else 'missing' }}</p>{% endif %}
           {% if a.platform == 'tiktok' %}<p class="text-xs text-zinc-500">cookies {{ 'set ✓' if a.cookies_path else 'missing' }}</p>{% endif %}
@@ -151,6 +158,8 @@
         <summary class="cursor-pointer text-xs text-emerald-400 hover:text-emerald-300 select-none">✏️ Edit</summary>
         <form method="post" action="/accounts/{{ a.id }}/edit" enctype="multipart/form-data" class="space-y-2 mt-3">
           <input name="label" value="{{ a.label }}" placeholder="Label"
+                 class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-1.5 text-sm">
+          <input name="url" value="{{ a.url or '' }}" placeholder="Profile / Page URL (optional)"
                  class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-1.5 text-sm">
           {% if a.platform == 'facebook' %}
             <input name="secret" type="password" placeholder="New Page token (blank = keep current)"

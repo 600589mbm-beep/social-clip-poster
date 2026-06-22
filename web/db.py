@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS accounts (
     id          INTEGER PRIMARY KEY AUTOINCREMENT,
     platform    TEXT NOT NULL,               -- tiktok | instagram | facebook
     label       TEXT NOT NULL,               -- friendly name, e.g. "@mygamingclips"
+    url         TEXT,                         -- public profile / page URL (reference)
     username    TEXT,                         -- IG username (if applicable)
     secret      TEXT,                         -- password/token entered directly (server-side, gitignored)
     secret_env  TEXT,                         -- OR name of env var holding password/token
@@ -107,6 +108,8 @@ def init_db() -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
         if "secret" not in cols:
             conn.execute("ALTER TABLE accounts ADD COLUMN secret TEXT")
+        if "url" not in cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN url TEXT")
         pcols = {r["name"] for r in conn.execute("PRAGMA table_info(posts)")}
         if "external_id" not in pcols:
             conn.execute("ALTER TABLE posts ADD COLUMN external_id TEXT")

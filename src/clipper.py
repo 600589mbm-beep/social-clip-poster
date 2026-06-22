@@ -119,32 +119,114 @@ def pick_loud_window(path: str, target_len: float, max_candidates: int = 12) -> 
     return best_start, target_len
 
 
+def _ytdlp():
+    from src.sources import ytdlp_bin
+    b = ytdlp_bin()
+    if b is None:
+        raise RuntimeError("yt-dlp not found (pip install yt-dlp in the venv).")
+    return b
+
+
+def _download_section(url: str, start, end, browser_for_cookies: str | None) -> str:
+    """Download ONLY the [start, end] section (fast, low bandwidth)."""
+    ytdlp = _ytdlp()
+    temp_file = f"temp_section_{abs(hash((url, start, end))) % 10_000_000}.mp4"
+    cmd = [
+        ytdlp, "-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4",
+        "--download-sections", f"*{start}-{end}", "--force-keyframes-at-cuts",
+        "-o", temp_file, url,
+    ]
+    if "kick.com" in url.lower():
+        cmd += ["--impersonate", "chrome"]
+        if browser_for_cookies:
+            cmd += ["--cookies-from-browser", browser_for_cookies]
+    log.info("Downloading section %s-%s of %s ...", start, end, url)
+    subprocess.run(cmd, check=True)
+    return temp_file
+
+
+def _download_audio(url: str, browser_for_cookies: str | None) -> str:
+    """Download audio only (small) — used to scan for the loudest window."""
+    import glob
+    ytdlp = _ytdlp()
+    stem = f"temp_audio_{abs(hash(url)) % 10_000_000}"
+    cmd = [ytdlp, "-f", "bestaudio/best", "-o", f"{stem}.%(ext)s", url]
+    if "kick.com" in url.lower():
+        cmd += ["--impersonate", "chrome"]
+        if browser_for_cookies:
+            cmd += ["--cookies-from-browser", browser_for_cookies]
+    log.info("Downloading audio of %s for highlight scan ...", url)
+    subprocess.run(cmd, check=True)
+    hits = glob.glob(f"{stem}.*")
+    if not hits:
+        raise RuntimeError("audio download produced no file")
+    return hits[0]
+
+
+def _scale(src: str, output_path: str) -> str:
+    """Scale/pad an already-trimmed file to vertical 1080x1920."""
+    _require("ffmpeg")
+    output_path = str(Path(output_path).with_suffix(".mp4"))
+    Path(output_path).parent.mkdir(parents=True, exist_ok=True)
+    subprocess.run([
+        "ffmpeg", "-y", "-i", src, "-c:v", "libx264", "-c:a", "aac",
+        "-vf", "scale=1080:1920:force_original_aspect_ratio=decrease,"
+               "pad=1080:1920:(ow-iw)/2:(oh-ih)/2",
+        output_path,
+    ], check=True)
+    log.info("Clip saved: %s", output_path)
+    return output_path
+
+
 def create_clip_from_url(
     url: str, start_time: str, end_time: str, output_path: str,
     *, browser_for_cookies: str | None = None, keep_temp: bool = False,
 ) -> str:
-    """Download and trim to a fixed [start_time, end_time] window (HH:MM:SS or seconds)."""
-    temp_file = _download(url, browser_for_cookies)
+    """Fixed [start,end] window — downloads only that section, then scales 9:16.
+    Falls back to full download + trim if section download fails."""
     try:
-        return _trim(temp_file, start_time, end_time, output_path)
-    finally:
-        if not keep_temp and os.path.exists(temp_file):
-            os.remove(temp_file)
+        sec = _download_section(url, start_time, end_time, browser_for_cookies)
+        try:
+            return _scale(sec, output_path)
+        finally:
+            if not keep_temp and os.path.exists(sec):
+                os.remove(sec)
+    except subprocess.CalledProcessError:
+        log.warning("section download failed; falling back to full download")
+        temp_file = _download(url, browser_for_cookies)
+        try:
+            return _trim(temp_file, start_time, end_time, output_path)
+        finally:
+            if not keep_temp and os.path.exists(temp_file):
+                os.remove(temp_file)
 
 
 def create_auto_clip(
     url: str, target_len: float, output_path: str,
     *, browser_for_cookies: str | None = None, keep_temp: bool = False,
 ) -> str:
-    """Download, auto-detect the loudest target_len window, and clip it 9:16."""
-    temp_file = _download(url, browser_for_cookies)
+    """Scan a small audio-only download for the loudest window, then download
+    just that section as video. Falls back to a full download if needed."""
+    target_len = float(target_len)
     try:
+        audio = _download_audio(url, browser_for_cookies)
         try:
-            start, length = pick_loud_window(temp_file, float(target_len))
-        except Exception:
-            log.exception("auto window detection failed; falling back to start")
-            start, length = 0.0, float(target_len)
-        return _trim(temp_file, str(start), str(start + length), output_path)
-    finally:
-        if not keep_temp and os.path.exists(temp_file):
-            os.remove(temp_file)
+            start, length = pick_loud_window(audio, target_len)
+        finally:
+            if not keep_temp and os.path.exists(audio):
+                os.remove(audio)
+        return create_clip_from_url(
+            url, str(round(start, 2)), str(round(start + length, 2)),
+            output_path, browser_for_cookies=browser_for_cookies, keep_temp=keep_temp)
+    except subprocess.CalledProcessError:
+        log.warning("audio/section path failed; falling back to full download")
+        temp_file = _download(url, browser_for_cookies)
+        try:
+            try:
+                start, length = pick_loud_window(temp_file, target_len)
+            except Exception:
+                start, length = 0.0, target_len
+            return _trim(temp_file, str(start), str(start + length), output_path)
+        finally:
+            if not keep_temp and os.path.exists(temp_file):
+                os.remove(temp_file)

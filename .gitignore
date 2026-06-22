@@ -16,6 +16,8 @@ config.json
 # Media / build artifacts
 clips/
 temp_full_video*.mp4
+temp_section_*
+temp_audio_*
 *.mp4
 *.mkv
 *.webm

@@ -56,7 +56,8 @@ def index():
 def add_channel():
     url = request.form["url"].strip()
     platform = detect_platform(url)
-    clip_seconds = int(request.form.get("clip_seconds") or 60)
+    # default to Hermes auto-optimize (-1) so it self-learns the best clip
+    clip_seconds = int(request.form.get("clip_seconds") or -1)
     with get_conn() as c:
         c.execute(
             "INSERT OR IGNORE INTO channels(url, platform, clip_seconds) VALUES (?,?,?)",
@@ -74,8 +75,14 @@ def delete_channel(cid: int):
 @app.post("/channels/<int:cid>/clip")
 def update_clip(cid: int):
     secs = int(request.form.get("clip_seconds") or -1)
+    new_url = (request.form.get("url") or "").strip()
     with get_conn() as c:
-        c.execute("UPDATE channels SET clip_seconds=? WHERE id=?", (secs, cid))
+        if new_url:
+            platform = detect_platform(new_url)
+            c.execute("UPDATE channels SET clip_seconds=?, url=?, platform=? WHERE id=?",
+                      (secs, new_url, platform, cid))
+        else:
+            c.execute("UPDATE channels SET clip_seconds=? WHERE id=?", (secs, cid))
     return redirect(url_for("index"))
 
 
@@ -137,10 +144,11 @@ def add_account():
 
     with get_conn() as c:
         c.execute(
-            "INSERT INTO accounts(platform,label,username,secret,secret_env,cookies_path,extra) "
-            "VALUES (?,?,?,?,?,?,?)",
+            "INSERT INTO accounts(platform,label,url,username,secret,secret_env,cookies_path,extra) "
+            "VALUES (?,?,?,?,?,?,?,?)",
             (platform,
              label,
+             (request.form.get("url") or "").strip() or None,
              (request.form.get("username") or "").strip() or None,
              secret,
              (request.form.get("secret_env") or "").strip() or None,
@@ -166,6 +174,7 @@ def edit_account(aid: int):
     platform = a["platform"]
 
     label = (request.form.get("label") or a["label"]).strip()
+    acct_url = (request.form.get("url") or "").strip() or a["url"]
     username = (request.form.get("username") or "").strip() or a["username"]
     new_secret = (request.form.get("secret") or "").strip()
     secret = new_secret or a["secret"]          # blank = keep existing
@@ -186,8 +195,8 @@ def edit_account(aid: int):
 
     with get_conn() as c:
         c.execute(
-            "UPDATE accounts SET label=?, username=?, secret=?, cookies_path=?, extra=? WHERE id=?",
-            (label, username, secret, cookies_path, json.dumps(extra) if extra else None, aid))
+            "UPDATE accounts SET label=?, url=?, username=?, secret=?, cookies_path=?, extra=? WHERE id=?",
+            (label, acct_url, username, secret, cookies_path, json.dumps(extra) if extra else None, aid))
     return redirect(url_for("index"))
 
 
