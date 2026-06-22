@@ -1,0 +1,18 @@
+[
+  {
+    "url": "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
+    "start": "00:05:30",
+    "end": "00:06:45",
+    "caption_ig": "Epic moment! 🔥 #gaming #clips",
+    "caption_tt": "This clip is insane 😱 #fyp #gaming",
+    "platforms": ["instagram", "tiktok"]
+  },
+  {
+    "url": "https://kick.com/somechannel/videos/xxxxxx",
+    "start": "01:23:45",
+    "end": "01:25:30",
+    "caption_ig": "Wild stream moment 🎮 #kick #livestream",
+    "caption_tt": "You won't believe this 😮 #fyp #kick",
+    "platforms": ["tiktok"]
+  }
+]

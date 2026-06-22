@@ -1,0 +1,23 @@
+# Python
+venv/
+.venv/
+__pycache__/
+*.pyc
+.eggs/
+*.egg-info/
+
+# Secrets & sessions — NEVER commit these
+.env
+*_session.json
+*cookies*.txt
+*cookies*.json
+config.json
+
+# Media / build artifacts
+clips/
+temp_full_video*.mp4
+*.mp4
+*.mkv
+*.webm
+*.part
+run.log
