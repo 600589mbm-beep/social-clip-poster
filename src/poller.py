@@ -66,28 +66,31 @@ def _post_one(conn, channel: dict, account: dict, video: dict) -> None:
             # 0 = AUTO: bot picks the loudest ~60s highlight window
             clip_path = create_auto_clip(video["url"], 60, out, browser_for_cookies=browser)
 
+        ext_id = None
         if plat == "instagram":
             pw = _secret(account)
             if not (account["username"] and pw):
-                raise RuntimeError("instagram account missing username/secret_env")
-            post_to_instagram(clip_path, caption, account["username"], pw)
+                raise RuntimeError("instagram account missing username/secret")
+            media = post_to_instagram(clip_path, caption, account["username"], pw)
+            ext_id = str(getattr(media, "pk", "") or "") or None
         elif plat == "tiktok":
             if not account["cookies_path"] or not os.path.exists(account["cookies_path"]):
-                raise RuntimeError("tiktok account missing cookies_path")
+                raise RuntimeError("tiktok account missing cookies file")
             post_to_tiktok(clip_path, caption, account["cookies_path"])
         elif plat == "facebook":
             extra = json.loads(account["extra"] or "{}")
             token = _secret(account)
             if not (extra.get("page_id") and token):
-                raise RuntimeError("facebook account missing page_id/secret_env token")
-            post_to_facebook(clip_path, caption, extra["page_id"], token)
+                raise RuntimeError("facebook account missing page_id/token")
+            out = post_to_facebook(clip_path, caption, extra["page_id"], token)
+            ext_id = (out or {}).get("id")
         else:
             raise RuntimeError(f"unknown platform {plat}")
 
         conn.execute(
-            "INSERT INTO posts(channel_id,account_id,video_id,video_url,status,detail) "
-            "VALUES (?,?,?,?, 'ok', ?)",
-            (channel["id"], account["id"], video["id"], video["url"], f"posted to {plat}"),
+            "INSERT INTO posts(channel_id,account_id,video_id,video_url,external_id,status,detail) "
+            "VALUES (?,?,?,?,?, 'ok', ?)",
+            (channel["id"], account["id"], video["id"], video["url"], ext_id, f"posted to {plat}"),
         )
     except Exception as exc:  # one account failing must not stop the others
         log.exception("post failed: channel=%s account=%s video=%s", channel["id"], account["id"], video["id"])

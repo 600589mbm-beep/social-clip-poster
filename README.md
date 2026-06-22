@@ -119,6 +119,31 @@ your account secrets) — it cannot run as a static page.
 - Posting hundreds of videos rapidly *will* trip rate limits. Keep delays generous,
   stagger channels, and treat the unofficial posters as best-effort.
 
+## Hermes — performance watcher & growth coach
+
+Hermes learns what actually grows your channels. It collects each posted clip's
+stats over time + follower snapshots, then ranks **clip mode (auto vs fixed),
+source channel, posting hour, and platform** by views, and writes a brief with
+concrete next actions.
+
+```bash
+python -m hermes.watch --once            # collect metrics + write a brief now
+python -m hermes.watch --interval 21600  # loop every 6h (or: systemctl start clipper-hermes)
+```
+
+- Dashboard tab **📈 Hermes** (`/hermes`) shows leaderboards, follower growth, and the latest brief.
+- **Optional LLM coach:** set `OPENROUTER_API_KEY` (+ `HERMES_MODEL`) and Hermes adds a
+  plain-English "coach's read" + next actions; without it, it emits a clean template.
+
+### What returns real numbers (honest status)
+| Platform | Metrics read | Needs |
+|----------|--------------|-------|
+| Facebook | views via Graph `video_insights`; Page followers | Page access token |
+| Instagram | views/likes/comments via instagrapi; follower count | IG login |
+| TikTok | **stub** — no reliable read without the official API | TikTok Display/Content API access |
+
+Hermes runs `clipper-hermes.service` (installed, **stopped** until you start it).
+
 ## Notes & alternatives
 
 - The `tiktok-uploader` package exposes `upload_video(filename, description, cookies, ...)`.

@@ -1,0 +1,70 @@
+{% extends "base.html" %}
+{% block body %}
+
+<div class="flex items-end justify-between">
+  <div>
+    <h1 class="text-2xl font-bold">📈 Hermes — performance &amp; growth</h1>
+    <p class="text-zinc-400 text-sm mt-1">Learns which clip length, source, time, and platform drive views + followers.</p>
+  </div>
+  <span class="text-xs text-zinc-500">{{ a.n_posts }} clips analyzed{% if brief_at %} · brief {{ brief_at }}{% endif %}</span>
+</div>
+
+<!-- RECOMMENDATIONS -->
+<section class="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-6">
+  <h2 class="font-semibold text-lg mb-3 text-emerald-300">🤖 What Hermes recommends</h2>
+  <ul class="space-y-1 text-sm">
+    {% for r in a.recommendations %}<li>• {{ r | safe }}</li>{% endfor %}
+  </ul>
+</section>
+
+<!-- LEADERBOARDS -->
+<div class="grid md:grid-cols-2 gap-6">
+  {% macro board(title, rows, unit='avg views') %}
+  <section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+    <h3 class="font-semibold mb-3">{{ title }}</h3>
+    {% if rows %}
+    <table class="w-full text-sm">
+      <thead class="text-zinc-500 text-xs"><tr><th class="text-left">item</th><th class="text-right">{{ unit }}</th><th class="text-right">n</th></tr></thead>
+      <tbody>
+        {% for name, avg, n in rows[:8] %}
+        <tr class="border-t border-zinc-800"><td class="py-1.5 truncate max-w-[220px]">{{ name }}</td>
+          <td class="text-right">{{ '{:,.0f}'.format(avg) }}</td><td class="text-right text-zinc-500">{{ n }}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    {% else %}<p class="text-zinc-600 text-sm">No data yet.</p>{% endif %}
+  </section>
+  {% endmacro %}
+
+  {{ board('🎬 Best clip mode', a.by_mode) }}
+  {{ board('📺 Best source channel', a.by_channel) }}
+  {{ board('🕐 Best posting hour', a.by_hour) }}
+  {{ board('📱 Best platform', a.by_platform) }}
+</div>
+
+<!-- FOLLOWER GROWTH -->
+<section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+  <h3 class="font-semibold mb-3">👥 Follower growth</h3>
+  {% if a.growth %}
+  <table class="w-full text-sm">
+    <thead class="text-zinc-500 text-xs"><tr><th class="text-left">account</th><th class="text-left">platform</th><th class="text-right">Δ followers</th><th class="text-right">now</th></tr></thead>
+    <tbody>
+      {% for g in a.growth %}
+      <tr class="border-t border-zinc-800"><td class="py-1.5">{{ g.label }}</td><td>{{ g.platform }}</td>
+        <td class="text-right {{ 'text-emerald-400' if g.delta>=0 else 'text-red-400' }}">{{ '{:+,}'.format(g.delta) }}</td>
+        <td class="text-right">{{ '{:,}'.format(g.followers) }}</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}<p class="text-zinc-600 text-sm">No follower snapshots yet — Hermes records these each cycle.</p>{% endif %}
+</section>
+
+<!-- LATEST BRIEF -->
+<section class="bg-zinc-900 border border-zinc-800 rounded-xl p-5">
+  <h3 class="font-semibold mb-3">📝 Latest brief</h3>
+  {% if brief_md %}
+  <pre class="whitespace-pre-wrap text-xs text-zinc-300 leading-relaxed">{{ brief_md }}</pre>
+  {% else %}<p class="text-zinc-600 text-sm">No brief yet. Run <code>python -m hermes.watch --once</code> (or start the hermes service).</p>{% endif %}
+</section>
+
+{% endblock %}

@@ -51,9 +51,39 @@ CREATE TABLE IF NOT EXISTS posts (
     account_id INTEGER NOT NULL,
     video_id   TEXT NOT NULL,
     video_url  TEXT,
+    external_id TEXT,                        -- the platform's media id (to fetch stats later)
     status     TEXT NOT NULL,                -- ok | error | skipped
     detail     TEXT,
     posted_at  TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Hermes: time-series performance per posted clip
+CREATE TABLE IF NOT EXISTS metrics (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    post_id     INTEGER,
+    account_id  INTEGER,
+    platform    TEXT,
+    external_id TEXT,
+    views       INTEGER DEFAULT 0,
+    likes       INTEGER DEFAULT 0,
+    comments    INTEGER DEFAULT 0,
+    shares      INTEGER DEFAULT 0,
+    collected_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Hermes: follower count snapshots per account (track growth)
+CREATE TABLE IF NOT EXISTS account_stats (
+    id          INTEGER PRIMARY KEY AUTOINCREMENT,
+    account_id  INTEGER,
+    followers   INTEGER,
+    collected_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+-- Hermes: saved daily briefs (markdown)
+CREATE TABLE IF NOT EXISTS briefs (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    markdown   TEXT,
+    created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 """
 
@@ -73,6 +103,9 @@ def init_db() -> None:
         cols = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
         if "secret" not in cols:
             conn.execute("ALTER TABLE accounts ADD COLUMN secret TEXT")
+        pcols = {r["name"] for r in conn.execute("PRAGMA table_info(posts)")}
+        if "external_id" not in pcols:
+            conn.execute("ALTER TABLE posts ADD COLUMN external_id TEXT")
     # keep the DB file private (it can hold credentials)
     try:
         DB_PATH.chmod(0o600)
