@@ -90,9 +90,13 @@ CREATE TABLE IF NOT EXISTS briefs (
 
 def get_conn() -> sqlite3.Connection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    conn = sqlite3.connect(DB_PATH)
+    conn = sqlite3.connect(DB_PATH, timeout=10)
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
+    # multiple daemons (dashboard + poller + hermes) share this file:
+    # WAL lets readers and a writer coexist; busy_timeout waits out brief locks.
+    conn.execute("PRAGMA journal_mode = WAL")
+    conn.execute("PRAGMA busy_timeout = 5000")
     return conn
 
 
