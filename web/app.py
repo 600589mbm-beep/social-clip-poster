@@ -33,7 +33,14 @@ def hermes():
 def index():
     with get_conn() as c:
         channels = c.execute("SELECT * FROM channels ORDER BY created_at DESC").fetchall()
-        accounts = c.execute("SELECT * FROM accounts ORDER BY created_at DESC").fetchall()
+        acct_rows = c.execute("SELECT * FROM accounts ORDER BY created_at DESC").fetchall()
+        # attach the parsed page_id (from extra JSON) for the edit forms
+        accounts = []
+        for a in acct_rows:
+            d = dict(a)
+            d["page_id"] = json.loads(d.get("extra") or "{}").get("page_id")
+            d["has_secret"] = bool(d.get("secret"))
+            accounts.append(d)
         posts = c.execute(
             "SELECT p.*, ch.url AS channel_url, a.label AS account_label "
             "FROM posts p LEFT JOIN channels ch ON ch.id=p.channel_id "
@@ -146,6 +153,41 @@ def add_account():
 def delete_account(aid: int):
     with get_conn() as c:
         c.execute("DELETE FROM accounts WHERE id=?", (aid,))
+    return redirect(url_for("index"))
+
+
+@app.post("/accounts/<int:aid>/edit")
+def edit_account(aid: int):
+    with get_conn() as c:
+        row = c.execute("SELECT * FROM accounts WHERE id=?", (aid,)).fetchone()
+    if not row:
+        return redirect(url_for("index"))
+    a = dict(row)
+    platform = a["platform"]
+
+    label = (request.form.get("label") or a["label"]).strip()
+    username = (request.form.get("username") or "").strip() or a["username"]
+    new_secret = (request.form.get("secret") or "").strip()
+    secret = new_secret or a["secret"]          # blank = keep existing
+    extra = json.loads(a["extra"] or "{}")
+    cookies_path = a["cookies_path"]
+
+    if platform == "facebook":
+        if new_secret:                          # new token -> re-verify + refresh page id
+            pid, pname = _resolve_facebook_page(new_secret)
+            if pid:
+                extra["page_id"] = pid
+        if request.form.get("page_id"):
+            extra["page_id"] = request.form["page_id"].strip()
+    if platform == "tiktok":
+        up = _save_cookies_upload(request.files.get("cookies_file"))
+        if up:
+            cookies_path = up
+
+    with get_conn() as c:
+        c.execute(
+            "UPDATE accounts SET label=?, username=?, secret=?, cookies_path=?, extra=? WHERE id=?",
+            (label, username, secret, cookies_path, json.dumps(extra) if extra else None, aid))
     return redirect(url_for("index"))
 
 
