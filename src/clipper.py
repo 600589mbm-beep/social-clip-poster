@@ -26,6 +26,16 @@ def _require(tool: str) -> None:
         )
 
 
+def _source_cookie_args(url: str) -> list[str]:
+    """YouTube blocks server downloads without a logged-in session. If
+    YT_COOKIES_FILE is set (a cookies.txt exported from a logged-in browser),
+    pass it so yt-dlp can authenticate."""
+    f = os.environ.get("YT_COOKIES_FILE")
+    if f and os.path.exists(f) and ("youtube" in url.lower() or "youtu.be" in url.lower()):
+        return ["--cookies", f]
+    return []
+
+
 def _download(url: str, browser_for_cookies: str | None) -> str:
     from src.sources import ytdlp_bin
     ytdlp = ytdlp_bin()
@@ -34,6 +44,7 @@ def _download(url: str, browser_for_cookies: str | None) -> str:
     temp_file = f"temp_full_video_{abs(hash(url)) % 10_000_000}.mp4"
     dl_cmd = [
         ytdlp,
+        *_source_cookie_args(url),
         "-f", "bestvideo+bestaudio/best",
         "--merge-output-format", "mp4",
         "-o", temp_file,
@@ -132,7 +143,8 @@ def _download_section(url: str, start, end, browser_for_cookies: str | None) -> 
     ytdlp = _ytdlp()
     temp_file = f"temp_section_{abs(hash((url, start, end))) % 10_000_000}.mp4"
     cmd = [
-        ytdlp, "-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4",
+        ytdlp, *_source_cookie_args(url),
+        "-f", "bestvideo+bestaudio/best", "--merge-output-format", "mp4",
         "--download-sections", f"*{start}-{end}", "--force-keyframes-at-cuts",
         "-o", temp_file, url,
     ]
@@ -150,7 +162,7 @@ def _download_audio(url: str, browser_for_cookies: str | None) -> str:
     import glob
     ytdlp = _ytdlp()
     stem = f"temp_audio_{abs(hash(url)) % 10_000_000}"
-    cmd = [ytdlp, "-f", "bestaudio/best", "-o", f"{stem}.%(ext)s", url]
+    cmd = [ytdlp, *_source_cookie_args(url), "-f", "bestaudio/best", "-o", f"{stem}.%(ext)s", url]
     if "kick.com" in url.lower():
         cmd += ["--impersonate", "chrome"]
         if browser_for_cookies:
