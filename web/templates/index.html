@@ -10,7 +10,8 @@
              class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
       <label class="block text-xs text-zinc-400">Clip selection</label>
       <select name="clip_seconds" class="w-full bg-zinc-950 border border-zinc-700 rounded px-3 py-2 text-sm">
-        <option value="0" selected>🤖 Auto — bot picks the best ~60s highlight</option>
+        <option value="-1" selected>🧠 Hermes — auto-optimize (learns the best length)</option>
+        <option value="0">🤖 Auto — loudest ~60s highlight</option>
         <option value="30">First 30 seconds</option>
         <option value="60">First 60 seconds</option>
         <option value="90">First 90 seconds</option>
@@ -111,7 +112,7 @@
     <ul class="space-y-2">
       {% for ch in channels %}
       <li class="flex items-center justify-between bg-zinc-900 border border-zinc-800 rounded px-3 py-2 text-sm">
-        <span class="truncate"><span class="text-[10px] uppercase text-zinc-600 mr-2">{{ ch.platform }}</span>{{ ch.url }} <span class="text-zinc-600">· {% if ch.clip_seconds %}{{ ch.clip_seconds }}s{% else %}🤖 auto{% endif %}</span></span>
+        <span class="truncate"><span class="text-[10px] uppercase text-zinc-600 mr-2">{{ ch.platform }}</span>{{ ch.url }} <span class="text-zinc-600">· {% if ch.clip_seconds == -1 %}🧠 hermes{% elif ch.clip_seconds %}{{ ch.clip_seconds }}s{% else %}🤖 auto{% endif %}</span></span>
         <form method="post" action="/channels/{{ ch.id }}/delete"><button class="text-red-400 hover:text-red-300">✕</button></form>
       </li>
       {% endfor %}

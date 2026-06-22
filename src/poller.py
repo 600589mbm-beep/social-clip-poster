@@ -59,11 +59,19 @@ def _post_one(conn, channel: dict, account: dict, video: dict) -> None:
     out = f"clips/{channel['id']}_{video['id']}.mp4"
     browser = os.environ.get("BROWSER_FOR_COOKIES") or None
     try:
-        secs = int(channel["clip_seconds"] or 0)
-        if secs > 0:
+        secs = int(channel["clip_seconds"] if channel["clip_seconds"] is not None else -1)
+        # -1 = HERMES: let Hermes pick the length/window (explore then exploit)
+        if secs == -1:
+            from hermes.recommend import recommend_clip
+            picked, reason = recommend_clip()
+            log.info("hermes picks %s (%s) for channel=%s", picked, reason, channel["id"])
+            secs = picked
+        if secs and secs > 0:
+            clip_mode = f"{secs}s"
             clip_path = create_clip_from_url(video["url"], "0", str(secs), out, browser_for_cookies=browser)
         else:
-            # 0 = AUTO: bot picks the loudest ~60s highlight window
+            # 0 = loudness auto-window (~60s highlight)
+            clip_mode = "auto"
             clip_path = create_auto_clip(video["url"], 60, out, browser_for_cookies=browser)
 
         ext_id = None
@@ -88,9 +96,9 @@ def _post_one(conn, channel: dict, account: dict, video: dict) -> None:
             raise RuntimeError(f"unknown platform {plat}")
 
         conn.execute(
-            "INSERT INTO posts(channel_id,account_id,video_id,video_url,external_id,status,detail) "
-            "VALUES (?,?,?,?,?, 'ok', ?)",
-            (channel["id"], account["id"], video["id"], video["url"], ext_id, f"posted to {plat}"),
+            "INSERT INTO posts(channel_id,account_id,video_id,video_url,external_id,clip_mode,status,detail) "
+            "VALUES (?,?,?,?,?,?, 'ok', ?)",
+            (channel["id"], account["id"], video["id"], video["url"], ext_id, clip_mode, f"posted to {plat}"),
         )
     except Exception as exc:  # one account failing must not stop the others
         log.exception("post failed: channel=%s account=%s video=%s", channel["id"], account["id"], video["id"])

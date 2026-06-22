@@ -18,7 +18,7 @@ def _latest_metric_per_post(conn) -> list[dict]:
     """Most recent metric row for each post (so we count each clip once)."""
     rows = conn.execute(
         """
-        SELECT m.*, p.channel_id, p.posted_at, p.account_id AS p_account_id,
+        SELECT m.*, p.channel_id, p.posted_at, p.account_id AS p_account_id, p.clip_mode,
                c.url AS channel_url, c.clip_seconds,
                a.platform AS acct_platform, a.label AS acct_label
         FROM metrics m
@@ -38,7 +38,14 @@ def _avg(d: dict[str, list[int]]) -> list[tuple[str, float, int]]:
 
 
 def _clip_mode(clip_seconds) -> str:
-    return "auto" if not clip_seconds else f"{clip_seconds}s"
+    # falls back from channel setting when a post has no recorded mode
+    if not clip_seconds or clip_seconds < 0:
+        return "auto"
+    return f"{clip_seconds}s"
+
+
+def _effective_mode(row: dict) -> str:
+    return row.get("clip_mode") or _clip_mode(row.get("clip_seconds"))
 
 
 def analyze() -> dict:
@@ -63,7 +70,7 @@ def analyze() -> dict:
 
     for r in rows:
         v = r.get("views") or 0
-        by_mode[_clip_mode(r.get("clip_seconds"))].append(v)
+        by_mode[_effective_mode(r)].append(v)
         if r.get("channel_url"):
             by_channel[r["channel_url"]].append(v)
         if r.get("acct_platform"):

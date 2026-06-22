@@ -12,6 +12,10 @@
 <!-- RECOMMENDATIONS -->
 <section class="bg-emerald-950/40 border border-emerald-800/60 rounded-xl p-6">
   <h2 class="font-semibold text-lg mb-3 text-emerald-300">🤖 What Hermes recommends</h2>
+  {% if hermes_pick %}
+  <p class="text-sm mb-3">🧠 <b>Clip selection right now:</b> <span class="text-emerald-300">{{ hermes_pick }}</span>
+    <span class="text-zinc-500">(channels set to "Hermes" mode use this)</span></p>
+  {% endif %}
   <ul class="space-y-1 text-sm">
     {% for r in a.recommendations %}<li>• {{ r | safe }}</li>{% endfor %}
   </ul>

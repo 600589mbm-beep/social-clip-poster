@@ -106,6 +106,9 @@ def init_db() -> None:
         pcols = {r["name"] for r in conn.execute("PRAGMA table_info(posts)")}
         if "external_id" not in pcols:
             conn.execute("ALTER TABLE posts ADD COLUMN external_id TEXT")
+        if "clip_mode" not in pcols:
+            # the clip mode actually used ('auto'|'30s'|'60s'|'90s') so Hermes can learn
+            conn.execute("ALTER TABLE posts ADD COLUMN clip_mode TEXT")
     # keep the DB file private (it can hold credentials)
     try:
         DB_PATH.chmod(0o600)

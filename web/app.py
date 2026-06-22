@@ -18,12 +18,15 @@ init_db()
 @app.route("/hermes")
 def hermes():
     from hermes.analyze import analyze
+    from hermes.recommend import describe
     a = analyze()
+    hermes_pick = describe(a)
     with get_conn() as c:
         row = c.execute("SELECT * FROM briefs ORDER BY created_at DESC LIMIT 1").fetchone()
     brief_md = row["markdown"] if row else None
     brief_at = row["created_at"] if row else None
-    return render_template("hermes.html", a=a, brief_md=brief_md, brief_at=brief_at)
+    return render_template("hermes.html", a=a, hermes_pick=hermes_pick,
+                           brief_md=brief_md, brief_at=brief_at)
 
 
 @app.route("/")
