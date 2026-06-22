@@ -3,5 +3,7 @@ instagrapi>=2.1.0
 tiktok-uploader>=1.0.0
 python-dotenv>=1.0.0
 schedule>=1.2.0
-# Optional: instagrapi needs Pillow for media handling
 Pillow>=10.0.0
+# Web dashboard + channel watcher
+Flask>=3.0.0
+requests>=2.31.0

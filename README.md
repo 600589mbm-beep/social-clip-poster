@@ -70,6 +70,55 @@ config.example.json     # sample batch
 .env.example            # sample credentials/cookie paths
 ```
 
+## Web dashboard + auto-watch (the "add a channel, it posts forever" mode)
+
+Instead of editing `config.json`, run the dashboard and the watcher. You add a
+**channel** once and connect **accounts**; the watcher checks each channel and
+auto-clips + posts every *new* video going forward.
+
+```bash
+python -m web.db          # create the SQLite database (data/app.db)
+python -m web.app         # dashboard at http://localhost:8090
+python -m src.poller --interval 600   # watch channels every 10 min (separate process)
+```
+
+In the dashboard you can:
+- **Add source channels** — paste a YouTube or Kick channel URL; set the auto-clip length.
+- **Connect accounts** — TikTok / Instagram / Facebook. Add as many as you want (100+ each).
+- **Route** — a grid of checkboxes maps which accounts each channel posts to.
+- Watch a **recent-activity** log of every post attempt (ok/error).
+
+### What YOU add to make it run
+Secrets are **never** stored in the app DB — only the *names/paths* are. You provide:
+
+| Platform  | What to add | Where |
+|-----------|-------------|-------|
+| Instagram | username + an env var holding the password (e.g. `IG_PW_1`) | account form → `.env` |
+| TikTok    | a cookies file per account (e.g. `cookies/acct1.txt`) | account form → server file |
+| Facebook  | Page ID + an env var holding a Page access token (e.g. `FB_TOKEN_1`) | account form → `.env` |
+
+Put the real secrets in `.env` (gitignored) / cookie files on the server; reference
+them by name in the dashboard.
+
+### First-poll safety
+The first time a channel is polled, all its current videos are recorded as "seen"
+**without posting**, so you don't blast the entire backlog — only videos uploaded
+*after* you add the channel get posted.
+
+### Deploying (VPS)
+Run `web.app` behind a reverse proxy (Caddy/Nginx) with auth, and run `src.poller`
+as a long-running service (systemd / pm2). It is a backend app (DB + workers +
+your account secrets) — it cannot run as a static page.
+
+### Scale & honesty (read this for 100+ accounts)
+- `instagrapi` and `tiktok-uploader` are **unofficial** and the biggest ban/breakage
+  risk at scale. For real volume, migrate the posters in `src/platforms/` to the
+  **official** APIs: Instagram Graph **Content Publishing**, TikTok **Content Posting
+  API**, Facebook **Graph API** (the included `facebook.py` already uses Graph). Each
+  needs an approved Meta/TikTok developer app.
+- Posting hundreds of videos rapidly *will* trip rate limits. Keep delays generous,
+  stagger channels, and treat the unofficial posters as best-effort.
+
 ## Notes & alternatives
 
 - The `tiktok-uploader` package exposes `upload_video(filename, description, cookies, ...)`.

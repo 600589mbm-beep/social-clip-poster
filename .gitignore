@@ -21,3 +21,9 @@ temp_full_video*.mp4
 *.webm
 *.part
 run.log
+poller.log
+
+# App data & cookie files (server-side, never commit)
+data/
+*.db
+cookies/
