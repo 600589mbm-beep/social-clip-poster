@@ -50,21 +50,48 @@ def delete_channel(cid: int):
     return redirect(url_for("index"))
 
 
+COOKIES_DIR = Path(__file__).resolve().parent.parent / "cookies"
+
+
+def _save_cookies_upload(file_storage) -> str | None:
+    """Persist an uploaded TikTok cookies.txt to cookies/ and return its path."""
+    if not file_storage or not file_storage.filename:
+        return None
+    COOKIES_DIR.mkdir(exist_ok=True)
+    safe = "".join(ch for ch in file_storage.filename if ch.isalnum() or ch in "._-") or "cookies.txt"
+    dest = COOKIES_DIR / f"{int(__import__('time').time())}_{safe}"
+    file_storage.save(dest)
+    try:
+        dest.chmod(0o600)
+    except OSError:
+        pass
+    return str(dest)
+
+
 @app.post("/accounts/add")
 def add_account():
     platform = request.form["platform"]
     extra = {}
     if platform == "facebook" and request.form.get("page_id"):
         extra["page_id"] = request.form["page_id"].strip()
+
+    # Sign in the easy way: type the secret straight in (stored server-side), or
+    # upload a TikTok cookies file. Falls back to an env-var name if provided.
+    secret = (request.form.get("secret") or "").strip() or None
+    cookies_path = _save_cookies_upload(request.files.get("cookies_file"))
+    if not cookies_path:
+        cookies_path = (request.form.get("cookies_path") or "").strip() or None
+
     with get_conn() as c:
         c.execute(
-            "INSERT INTO accounts(platform,label,username,secret_env,cookies_path,extra) "
-            "VALUES (?,?,?,?,?,?)",
+            "INSERT INTO accounts(platform,label,username,secret,secret_env,cookies_path,extra) "
+            "VALUES (?,?,?,?,?,?,?)",
             (platform,
              request.form["label"].strip(),
              (request.form.get("username") or "").strip() or None,
+             secret,
              (request.form.get("secret_env") or "").strip() or None,
-             (request.form.get("cookies_path") or "").strip() or None,
+             cookies_path,
              json.dumps(extra) if extra else None))
     return redirect(url_for("index"))
 

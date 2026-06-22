@@ -21,7 +21,8 @@ CREATE TABLE IF NOT EXISTS accounts (
     platform    TEXT NOT NULL,               -- tiktok | instagram | facebook
     label       TEXT NOT NULL,               -- friendly name, e.g. "@mygamingclips"
     username    TEXT,                         -- IG username (if applicable)
-    secret_env  TEXT,                         -- name of env var holding password/token
+    secret      TEXT,                         -- password/token entered directly (server-side, gitignored)
+    secret_env  TEXT,                         -- OR name of env var holding password/token
     cookies_path TEXT,                        -- path to cookies file (TikTok) if applicable
     extra        TEXT,                        -- JSON for platform-specific fields (e.g. FB page_id)
     active      INTEGER NOT NULL DEFAULT 1,
@@ -68,6 +69,15 @@ def get_conn() -> sqlite3.Connection:
 def init_db() -> None:
     with get_conn() as conn:
         conn.executescript(SCHEMA)
+        # migrate older DBs that predate the `secret` column
+        cols = {r["name"] for r in conn.execute("PRAGMA table_info(accounts)")}
+        if "secret" not in cols:
+            conn.execute("ALTER TABLE accounts ADD COLUMN secret TEXT")
+    # keep the DB file private (it can hold credentials)
+    try:
+        DB_PATH.chmod(0o600)
+    except OSError:
+        pass
 
 
 if __name__ == "__main__":

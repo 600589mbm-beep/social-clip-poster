@@ -18,7 +18,7 @@ import time
 
 from dotenv import load_dotenv
 
-from .clipper import create_clip_from_url
+from .clipper import create_clip_from_url, create_auto_clip
 from .sources import list_recent_videos
 from .platforms.instagram import post_to_instagram
 from .platforms.tiktok import post_to_tiktok
@@ -41,8 +41,14 @@ POST_DELAY_SECONDS = 30
 
 
 def _secret(account: dict) -> str | None:
-    """Resolve an account's password/token from the env var it references."""
-    name = account["secret_env"]
+    """Resolve an account's password/token.
+
+    Prefers a directly-entered secret (stored in the DB), else falls back to the
+    named env var (for users who prefer keeping secrets in .env).
+    """
+    if account.get("secret"):
+        return account["secret"]
+    name = account.get("secret_env")
     return os.environ.get(name) if name else None
 
 
@@ -50,12 +56,15 @@ def _post_one(conn, channel: dict, account: dict, video: dict) -> None:
     plat = account["platform"]
     caption = f"{video['title']}".strip() or ""
     clip_path = None
+    out = f"clips/{channel['id']}_{video['id']}.mp4"
+    browser = os.environ.get("BROWSER_FOR_COOKIES") or None
     try:
-        clip_path = create_clip_from_url(
-            video["url"], "0", str(channel["clip_seconds"]),
-            f"clips/{channel['id']}_{video['id']}.mp4",
-            browser_for_cookies=os.environ.get("BROWSER_FOR_COOKIES") or None,
-        )
+        secs = int(channel["clip_seconds"] or 0)
+        if secs > 0:
+            clip_path = create_clip_from_url(video["url"], "0", str(secs), out, browser_for_cookies=browser)
+        else:
+            # 0 = AUTO: bot picks the loudest ~60s highlight window
+            clip_path = create_auto_clip(video["url"], 60, out, browser_for_cookies=browser)
 
         if plat == "instagram":
             pw = _secret(account)
