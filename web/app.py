@@ -64,6 +64,14 @@ def delete_channel(cid: int):
     return redirect(url_for("index"))
 
 
+@app.post("/channels/<int:cid>/clip")
+def update_clip(cid: int):
+    secs = int(request.form.get("clip_seconds") or -1)
+    with get_conn() as c:
+        c.execute("UPDATE channels SET clip_seconds=? WHERE id=?", (secs, cid))
+    return redirect(url_for("index"))
+
+
 COOKIES_DIR = Path(__file__).resolve().parent.parent / "cookies"
 
 
